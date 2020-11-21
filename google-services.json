@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "167329064376",
+    "firebase_url": "https://scoutgame-dfd79.firebaseio.com",
+    "project_id": "scoutgame-dfd79",
+    "storage_bucket": "scoutgame-dfd79.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:167329064376:android:b26ed49a8adfe497089b4d",
+        "android_client_info": {
+          "package_name": "com.skaut.oddil41"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "167329064376-r49itbgm1dsbbdvif8o4f51nr00gd7qr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfQVgerq7-iAnXC1orm3h-vv6UxSX7J9o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "167329064376-r49itbgm1dsbbdvif8o4f51nr00gd7qr.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

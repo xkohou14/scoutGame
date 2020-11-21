@@ -7,7 +7,8 @@ import Colors from '../constants/Colors';
 import useColorScheme from '../hooks/useColorScheme';
 import Map from '../screens/Map';
 import Stats from '../screens/Stats';
-import { BottomTabParamList, TabOneParamList, TabTwoParamList } from '../types';
+import {BottomTabParamList, TabOneParamList, TabTreeParamList, TabTwoParamList} from '../types';
+import Settings from "../screens/Settings";
 
 const BottomTab = createBottomTabNavigator<BottomTabParamList>();
 
@@ -32,6 +33,13 @@ export default function BottomTabNavigator() {
           tabBarIcon: ({ color }) => <TabBarIcon name="ios-code" color={color} />,
         }}
       />
+        <BottomTab.Screen
+            name="Settings"
+            component={SettingsNavigator}
+            options={{
+                tabBarIcon: ({ color }) => <TabBarIcon name="ios-code" color={color} />,
+            }}
+        />
     </BottomTab.Navigator>
   );
 }
@@ -70,4 +78,18 @@ function StatsNavigator() {
       />
     </TabStats.Navigator>
   );
+}
+
+const TabSettings = createStackNavigator<TabTreeParamList>();
+
+function SettingsNavigator() {
+    return (
+        <TabSettings.Navigator>
+            <TabSettings.Screen
+                name="Settings"
+                component={Settings}
+                options={{ headerTitle: 'Settings' }}
+            />
+        </TabSettings.Navigator>
+    );
 }

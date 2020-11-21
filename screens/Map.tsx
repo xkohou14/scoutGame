@@ -1,31 +1,37 @@
-import React, {useEffect} from "react";
+import React from "react";
 import {
   StyleSheet,
   View,
   Text,
   TouchableOpacity,
   Platform,
-  PermissionsAndroid
+  PermissionsAndroid, Button
 } from "react-native";
 import MapView, {
   Marker,
   PROVIDER_GOOGLE
 } from "react-native-maps";
 import Geolocation from 'react-native-geolocation-service';
+import Team from "../interfaces/ITeam";
+import {IPosition, IPositions} from "../firebase/IStructures";
+import {createPosition, getPositons, getUserTeam, isLoaded, isLogged, readGame} from "../firebase/firebase-handler";
 
 export interface IMarker {
   name: string,
-  color: "red"|"blue",
+  color: Team,
   latitude: number,
   longitude: number,
 }
 
+const defaultMarker: IPosition = {team: "blue", latitude: 0, longitude: 0, name: "Middle of the Earth"};
+
 export interface IMapState {
   position: {latitude: number, longitude: number},
-  markers: Array<IMarker>,
+  markers: IPositions,
   hasLocationPermission: boolean,
   fetching: boolean,
   distance: number,
+  nearestMarker: IPosition,
   watchID: number,
 }
 
@@ -35,16 +41,17 @@ export const initialState: IMapState = {
   hasLocationPermission: false,
   fetching: false,
   distance: 500,
+  nearestMarker: defaultMarker,
   watchID: -1,
 };
 
-const markers: Array<IMarker> = [
-  {latitude: 49.203372776267074,longitude: 16.584417693584413, name: "P1", color: "blue"},
-  {latitude: 49.204087816477276,longitude: 16.576692934998167, name: "P2", color: "red"},
-  {latitude: 49.203281652785115,longitude: 16.573130990079555, name: "P3", color: "red"},
-  {latitude: 49.201171635525895,longitude: 16.57564151857248, name: "P4", color: "blue"},
-  {latitude: 49.19719659838776,longitude: 16.581080911628167, name: "P5", color: "blue"},
-  {latitude: 49.20045819548191,longitude: 16.584431924354714, name: "P6", color: "blue"},
+const markers: IPositions = [
+  {latitude: 49.203372776267074,longitude: 16.584417693584413, name: "TP1 position", team: "blue"},
+  {latitude: 49.204087816477276,longitude: 16.576692934998167, name: "TP2", team: "red"},
+  {latitude: 49.203281652785115,longitude: 16.573130990079555, name: "TP3", team: "red"},
+  {latitude: 49.201171635525895,longitude: 16.57564151857248, name: "TP4", team: "blue"},
+  {latitude: 49.19719659838776,longitude: 16.581080911628167, name: "TP5", team: "blue"},
+  {latitude: 49.20045819548191,longitude: 16.584431924354714, name: "TP6", team: "blue"},
 ];
 
 export default class Map extends React.Component <any, IMapState> {
@@ -53,6 +60,7 @@ export default class Map extends React.Component <any, IMapState> {
     super(props);
     this.fetch_settings = this.fetch_settings.bind(this);
     this.fetchPosition = this.fetchPosition.bind(this);
+    this.canCapture = this.canCapture.bind(this);
 
     this.state = initialState;
   }
@@ -71,7 +79,7 @@ export default class Map extends React.Component <any, IMapState> {
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       return R * c; // in metres
     };
-    const nearestMarker = (lat: number|null = null, lon: number|null = null): IMarker => {
+    const nearestMarker = (lat: number|null = null, lon: number|null = null): IPosition => {
       let latitude, longitude;
       if (lat && lon) {
         latitude = lat;
@@ -88,7 +96,7 @@ export default class Map extends React.Component <any, IMapState> {
         } else {
           return r;
         }
-      }, {color: "blue", latitude: 0, longitude: 0, name: "Beginning of system"})
+      }, defaultMarker)
     };
     const calculate = (position) => {
       const nearest = nearestMarker(position.coords.latitude, position.coords.longitude);
@@ -105,7 +113,8 @@ export default class Map extends React.Component <any, IMapState> {
             nearest.longitude,
             position.coords.latitude,
             position.coords.longitude
-        )
+        ),
+        nearestMarker: nearest,
       })
     };
 
@@ -162,12 +171,22 @@ export default class Map extends React.Component <any, IMapState> {
 
     this.setState({...this.state, fetching: true});
 
-    await delay(Math.random() % 3000 + 1500);
-
-    if (this._isMounted) {
-      this.setState({...this.state, fetching: false, markers: markers});
+    /*await delay(Math.random() % 3000 + 1500);*/
+    if (isLoaded()) {
+      readGame((val, u) => {
+        //alert(JSON.stringify(getPositons(), null, 2));
+        if (this._isMounted)
+          this.setState({...this.state, fetching: false, markers: getPositons()});
+      });
+    } else {
+      if (this._isMounted)
+        this.setState({fetching: false});
     }
   };
+
+  canCapture(): boolean {
+    return isLogged() && this.state.distance < 100.00; // less than 100 metres
+  }
 
   render() {
     return (
@@ -192,22 +211,21 @@ export default class Map extends React.Component <any, IMapState> {
                       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
                   ).then(granted => {
                     this.setState({hasLocationPermission: true});
-                    //alert("Android device permission " + granted) // just to ensure that permissions were granted
-                    /*this.fetchPosition();*/
                   });
                 }
               }}
           >
             {
-              this.state.markers.map((el, index) =>
-                  <Marker
-                      key={index}
-                      title={el.name}
-                      draggable={false}
-                      pinColor={el.color}
-                      coordinate={{latitude: el.latitude, longitude: el.longitude}}
-                  />
-              )
+              this.state.markers.length ?
+                  this.state.markers.map((el, index) =>
+                    <Marker
+                        key={index}
+                        title={el.name}
+                        draggable={false}
+                        pinColor={el.team}
+                        coordinate={{latitude: el.latitude, longitude: el.longitude}}
+                    />
+                ) : null
             }
           </MapView>
           <View style={styles.buttonContainer}>
@@ -216,7 +234,21 @@ export default class Map extends React.Component <any, IMapState> {
                 this.state.fetching ?
                     <Text>Loading...</Text>
                   :
-                    <Text>{this.state.distance.toFixed(2)} m </Text>
+                    this.canCapture() ?
+                      <Button key={1} title={`Capture point ${this.state.nearestMarker!.name}`} onPress={() => {
+                        createPosition({
+                          ...this.state.nearestMarker!,
+                          team: getUserTeam()
+                        });
+                        this.fetch_settings();
+                      }
+                      }/>
+                      :
+                      <Text onPress={this.fetch_settings}>
+                        Distance to {this.state.nearestMarker!.name}: {this.state.distance.toFixed(2)} m
+                        (for capturing you have to be signed)
+                        click for Refresh
+                      </Text>
               }
             </TouchableOpacity>
           </View>

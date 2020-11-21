@@ -1,8 +1,17 @@
 import * as React from 'react';
 import { StyleSheet, TextInput, Button } from 'react-native';
 
-import { Text, View, ScrollView } from '../components/Themed';
-import NewPosition from "../components/statsComponents/NewPosition";
+import { Text, View } from '../components/Themed';
+import {
+  getPositons,
+  getScore,
+  getUsername,
+  getUserTeam,
+  isLogged,
+  readGame,
+  test,
+  updateScore
+} from "../firebase/firebase-handler";
 
 export interface IStatsState {
   pwd: string, /*pwd for editing and scoring*/
@@ -53,10 +62,23 @@ export default class Stats extends React.Component <any, IStatsState> {
 
     this.setState({fetching: true});
 
-    await delay(Math.random() % 3000 + 1500);
-
-    if (this._isMounted) {
-      this.setState({fetching: false});
+    if (isLogged()) {
+      readGame(() => {
+        if (this._isMounted)
+          this.setState({
+            fetching: false,
+            redPoints: getScore().red,
+            bluePoints: getScore().blue,
+            reds: getPositons().filter(el => el.team === "red").length,
+            blues: getPositons().filter(el => el.team === "blue").length,
+            flags: getPositons().length
+          });
+      });
+    } else {
+      if (this._isMounted)
+        this.setState({
+          fetching: false
+        });
     }
   };
 
@@ -67,7 +89,13 @@ export default class Stats extends React.Component <any, IStatsState> {
   }
 
   submitScore(e) {
-    this.fetch_settings();
+    this.fetch_settings()
+        .then(() => {
+          const st = this.state;
+          updateScore(st.reds + st.redPoints, st.blues + st.bluePoints);
+          this.fetch_settings();
+        });
+    /*createGame(this.state.pwd);*/
   }
 
   render() {
@@ -76,34 +104,33 @@ export default class Stats extends React.Component <any, IStatsState> {
     return (
       <View style={styles.container}>
         {
-          this.state.fetching ?
+          this.state.fetching &&
               <Text style={styles.title}>Loading...</Text>
-              :
-              null
         }
-        <Text style={styles.title}>Stats</Text>
-        <Text>
-          You are signed to {blue}/{red} team.
-        </Text>
-        <Text>You can find <Text style={styles.title}>{this.state.flags}</Text> flags in the game</Text>
-        <Text><Text style={styles.title}>{blue}</Text> has actually <Text style={styles.title}>{this.state.blues}</Text> flags</Text>
-        <Text><Text style={styles.title}>{red}</Text> has actually <Text style={styles.title}>{this.state.reds}</Text> flags</Text>
-        <Text style={styles.separator}/>
-        <Text style={styles.title}>Score</Text>
-        <Text><Text style={styles.title}>{blue}</Text> : <Text style={styles.title}>{this.state.bluePoints}</Text></Text>
-        <Text><Text style={styles.title}>{red}</Text> : <Text style={styles.title}>{this.state.redPoints}</Text></Text>
         {
-          this.state.logged ?
-                [
-                    <Button key={1} title={"Count score"} onPress={this.submitScore}/>,
-                    <NewPosition key={2} />
-                ]
-              :
+          isLogged() ?
               [
-                <TextInput key={1} placeholder={"Enter password for editions"} onChangeText={text => {this.setState({pwdText: text})}}/>,
+                <Text key={11} style={styles.title}>Stats</Text>,
+                <Text key={12}>
+                You are signed as {getUsername()} to {getUserTeam() === "red" ? red : blue } team.
+                </Text>,
+                <Text key={13}>You can find <Text style={styles.title}>{this.state.flags}</Text> flags in the game</Text>,
+                <Text key={14}><Text style={styles.title}>{blue}</Text> has actually <Text style={styles.title}>{this.state.blues}</Text> flags</Text>,
+                <Text key={15}><Text style={styles.title}>{red}</Text> has actually <Text style={styles.title}>{this.state.reds}</Text> flags</Text>,
+                <Text key={16} style={styles.title}>Score</Text>,
+                <Text key={17}><Text style={styles.title}>{blue}</Text> : <Text style={styles.title}>{this.state.bluePoints}</Text></Text>,
+                <Text key={18}><Text style={styles.title}>{red}</Text> : <Text style={styles.title}>{this.state.redPoints}</Text></Text>,
+
+                this.state.logged ?
+                <Button key={1} title={"Count score"} onPress={this.submitScore}/>
+                :
+                <TextInput key={1} placeholder={"Enter admin password for edit"} onChangeText={text => {this.setState({pwdText: text})}}/>,
                 <Button key={2} title={"Submit"} onPress={this.submitBtn}/>
               ]
+              :
+              <Text>Create or load your profile at Settings</Text>
         }
+        <Button key={8} title={"Refresh"} onPress={this.fetch_settings}/>
       </View>
     );
   }

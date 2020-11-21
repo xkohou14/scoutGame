@@ -2,22 +2,19 @@ import * as React from 'react';
 import { StyleSheet, TextInput, Button } from 'react-native';
 
 import { Text, View } from '../Themed';
+import {IPosition, positionInitialState} from "../../firebase/IStructures";
+import {createPosition} from "../../firebase/firebase-handler";
 
-export interface IStatsState {
+export interface INewPositionState extends IPosition{
     fetching: boolean,
-    latitude: string,
-    longitude: string,
-    name: string,
 }
 
-const initialState: IStatsState = {
+const initialState: INewPositionState = {
     fetching: false,
-    latitude: "",
-    longitude: "",
-    name: "",
+    ...positionInitialState
 };
 
-export default class NewPosition extends React.Component <any, IStatsState> {
+export default class NewPosition extends React.Component <any, INewPositionState> {
     _isMounted = false;
     constructor(props: any) {
         super(props);
@@ -50,6 +47,12 @@ export default class NewPosition extends React.Component <any, IStatsState> {
 
     submitBtn(e) {
         this.fetch_settings();
+        createPosition({
+            team: this.state.team,
+            name: this.state.name,
+            latitude: this.state.latitude,
+            longitude: this.state.longitude
+        });
     }
 
 
@@ -65,9 +68,9 @@ export default class NewPosition extends React.Component <any, IStatsState> {
                 <Text>Name: </Text>
                 <TextInput placeholder={"Mendlak"} onChangeText={text => {this.setState({name: text})}}/>
                 <Text>Latitude: </Text>
-                <TextInput placeholder={"41.40338"} onChangeText={text => {this.setState({latitude: text})}}/>
+                <TextInput placeholder={"41.40338"} onChangeText={text => {this.setState({latitude: parseFloat(text)})}}/>
                 <Text>Longitude:</Text>
-                <TextInput placeholder={"2.17403"} onChangeText={text => {this.setState({longitude: text})}}/>
+                <TextInput placeholder={"2.17403"} onChangeText={text => {this.setState({longitude: parseFloat(text)})}}/>
                 <Button title={"Add new position"} onPress={this.submitBtn}/>
             </View>
         );
