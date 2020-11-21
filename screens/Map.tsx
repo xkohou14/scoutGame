@@ -60,68 +60,75 @@ export default class Map extends React.Component <any, IMapState> {
     super(props);
     this.fetch_settings = this.fetch_settings.bind(this);
     this.fetchPosition = this.fetchPosition.bind(this);
+    this.watchPosition = this.watchPosition.bind(this);
     this.canCapture = this.canCapture.bind(this);
+
+    this.distanceBetweenPoints = this.distanceBetweenPoints.bind(this);
+    this.nearestMarker = this.nearestMarker.bind(this);
+    this.calculate = this.calculate.bind(this);
 
     this.state = initialState;
   }
 
-  fetchPosition () {
-    const distanceBetweenPoints = (lat1:number, lon1:number, lat2:number, lon2:number, unit: string = "K"):number => {
-      const R = 6371e3; // metres
-      const φ1 = lat1 * Math.PI/180; // φ, λ in radians
-      const φ2 = lat2 * Math.PI/180;
-      const Δφ = (lat2-lat1) * Math.PI/180;
-      const Δλ = (lon2-lon1) * Math.PI/180;
+  distanceBetweenPoints = (lat1:number, lon1:number, lat2:number, lon2:number, unit: string = "K"):number => {
+    const R = 6371e3; // metres
+    const φ1 = lat1 * Math.PI/180; // φ, λ in radians
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
 
-      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-          Math.cos(φ1) * Math.cos(φ2) *
-          Math.sin(Δλ/2) * Math.sin(Δλ/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c; // in metres
-    };
-    const nearestMarker = (lat: number|null = null, lon: number|null = null): IPosition => {
-      let latitude, longitude;
-      if (lat && lon) {
-        latitude = lat;
-        longitude = lon;
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // in metres
+  };
+
+  nearestMarker = (lat: number|null = null, lon: number|null = null): IPosition => {
+    let latitude, longitude;
+    if (lat && lon) {
+      latitude = lat;
+      longitude = lon;
+    } else {
+      latitude = this.state.position.latitude;
+      longitude = this.state.position.longitude;
+    }
+    return this.state.markers.reduce((l, r) => {
+      const lDis = this.distanceBetweenPoints(l.latitude, l.longitude, latitude, longitude);
+      const rDis = this.distanceBetweenPoints(r.latitude, r.longitude, latitude, longitude);
+      if (lDis < rDis) {
+        return l;
       } else {
-        latitude = this.state.position.latitude;
-        longitude = this.state.position.longitude;
+        return r;
       }
-      return this.state.markers.reduce((l, r) => {
-        const lDis = distanceBetweenPoints(l.latitude, l.longitude, latitude, longitude);
-        const rDis = distanceBetweenPoints(r.latitude, r.longitude, latitude, longitude);
-        if (lDis < rDis) {
-          return l;
-        } else {
-          return r;
-        }
-      }, defaultMarker)
-    };
-    const calculate = (position) => {
-      const nearest = nearestMarker(position.coords.latitude, position.coords.longitude);
-      //alert("Position " + position.coords.latitude + " " + position.coords.longitude + " " + nearest.name + " " + this.state.markers.length);
+    }, defaultMarker)
+  };
 
-      this.setState({
-        ...this.state,
-        position: {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude
-        },
-        distance: distanceBetweenPoints(
-            nearest.latitude,
-            nearest.longitude,
-            position.coords.latitude,
-            position.coords.longitude
-        ),
-        nearestMarker: nearest,
-      })
-    };
+  calculate = (position) => {
+    const nearest = this.nearestMarker(position.coords.latitude, position.coords.longitude);
+    alert("Position " + position.coords.latitude + " " + position.coords.longitude + " " + nearest.name + " " + this.state.markers.length);
 
+    this.setState({
+      ...this.state,
+      position: {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      },
+      distance: this.distanceBetweenPoints(
+          nearest.latitude,
+          nearest.longitude,
+          position.coords.latitude,
+          position.coords.longitude
+      ),
+      nearestMarker: nearest,
+    })
+  };
+
+  fetchPosition () {
     if (this.state.hasLocationPermission) {
       const options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 6000000 };
-     navigator.geolocation.getCurrentPosition(
-        calculate
+      navigator.geolocation.getCurrentPosition(
+         this.calculate
         ,
         (error) => {
           // See error code charts below.
@@ -129,8 +136,16 @@ export default class Map extends React.Component <any, IMapState> {
         },
         options
       );
+    } else {
+      alert("does not have permissions")
+    }
+  }
+
+  watchPosition () {
+    if (this.state.hasLocationPermission) {
+      const options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 6000000 };
       const watch = navigator.geolocation.watchPosition(
-          calculate,
+          this.calculate,
           error => {alert("Watch position error: " + error.code + " - " + error.message)},
           options);
       alert("Permissions for LOCATION granted");
@@ -153,7 +168,7 @@ export default class Map extends React.Component <any, IMapState> {
         ).catch(err => {alert("Geolocation.requestAuthorization IOS error " + err)});
       }
       if (this.state.hasLocationPermission) {
-        this.fetchPosition();
+        this.watchPosition();
       }
     });
   }
@@ -200,8 +215,8 @@ export default class Map extends React.Component <any, IMapState> {
               followsUserLocation
               loadingEnabled
               region={{
-                latitude: 49.20236768498567,
-                longitude: 16.581798188069918,
+                latitude: this.state.position.latitude,
+                longitude: this.state.position.longitude,
                 latitudeDelta: 0.02,
                 longitudeDelta: 0.02
               }}
@@ -250,6 +265,9 @@ export default class Map extends React.Component <any, IMapState> {
                         click for Refresh
                       </Text>
               }
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.bubble, styles.button]}>
+              <Button title={"Refresh position"} onPress={this.fetchPosition}/>
             </TouchableOpacity>
           </View>
         </View>
